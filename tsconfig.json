@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",                         // Modern JS target
+    "useDefineForClassFields": true,            // Use define for class fields (recommended for modern code)
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],   // DOM and modern JS libs
+    "allowJs": false,                            // Only TypeScript files
+    "skipLibCheck": true,                        // Skip type checks on libs for faster builds
+    "esModuleInterop": true,                     // CommonJS interop
+    "allowSyntheticDefaultImports": true,       // Allow default imports from non-ES modules
+    "strict": true,                              // Enable all strict type-checking options
+    "forceConsistentCasingInFileNames": true,  // File name case consistency
+    "module": "ESNext",                          // Use ES modules
+    "moduleResolution": "Node",                  // Node module resolution
+    "resolveJsonModule": true,                   // Support importing JSON
+    "isolatedModules": true,                      // Needed for Vite and React Fast Refresh
+    "noEmit": true,                              // Don't emit compiled files (handled by Vite)
+    "jsx": "react-jsx",                          // Use React 17+ JSX transform
+    "baseUrl": ".",                              // Base directory for imports
+    "paths": {                                   // Custom path aliases if needed
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src"],                            // Include all TS/TSX files in src
+  // "references": [{ "path": "./tsconfig.node.json" }] // If you use separate config for node
+}

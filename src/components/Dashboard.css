@@ -1,0 +1,243 @@
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background-image: url('/bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #e80606;
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  overflow: hidden;
+}
+
+/* Layout sections */
+.main-sections {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Section Layout */
+.section1,
+.section2,
+.section3 {
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.section1 {
+  flex: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section2 {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding-left: 40px;
+}
+
+.section3 {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  text-align: left;
+  padding-left: 40px;
+}
+
+/* Divider with enhanced animation */
+.divider {
+  position: relative;
+  width: 45%;
+  height: 1px;
+  background-color: #ccc;
+  margin-left: 0;
+  animation: upDownLine 2s ease-in-out infinite;
+}
+
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  background-color: #ccc;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #ccc;
+  transform: translate(50%, -50%);
+  animation: upDownDot 2s ease-in-out infinite, pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes upDownLine {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes upDownDot {
+  0%, 100% {
+    transform: translate(50%, -50%) translateY(0);
+  }
+  50% {
+    transform: translate(50%, -50%) translateY(-10px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: translate(50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(50%, -50%) scale(1.2);
+  }
+}
+
+/* Fire button */
+.shoot-btn {
+  background-color: #e63946;
+  color: white;
+  font-size: 2rem;
+  padding: 3rem 8rem;
+  margin-left: 10rem;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(230, 57, 70, 0.5);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  user-select: none;
+  font-weight: 700;
+  min-width: 150px;
+}
+
+.shoot-btn:hover {
+  background-color: #d62828;
+  transform: scale(1.09);
+}
+
+.shoot-btn:active {
+  transform: scale(0.95);
+}
+
+/* Weapon grid */
+.weapon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
+.weapon-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.weapon-card img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.weapon-card:hover {
+  transform: scale(1.05);
+}
+
+.weapon-card.requested {
+  border: 2px dashed #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* Muted text */
+.muted {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+/* Weapon list */
+.weapon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.weapon-card {
+  background: rgba(30,30,30,0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.weapon-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.weapon-name {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.weapon-id {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.weapon-power {
+  font-weight: 600;
+}
+
+.mint-btn {
+  margin-right: 8px;
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.mint-btn:hover {
+  background-color: #45a049;
+}
+
+/* Error messages */
+.error {
+  color: #ff5555;
+  font-weight: 700;
+}

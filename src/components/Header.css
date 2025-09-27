@@ -1,0 +1,152 @@
+/* src/components/Header.css */
+.app-header {
+  width: 100vw;
+  height: 60px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  padding: 0 20px;
+  background: rgba(0, 0, 0, 0.605);
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  user-select: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 50px;
+}
+
+.nav-btn,
+.wallet-btn,
+.profile-btn {
+  background: #333;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.nav-btn:hover,
+.wallet-btn:hover,
+.profile-btn:hover {
+  background: #444;
+}
+
+.profile-wrapper {
+  position: relative;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: rgba(34, 34, 34, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  min-width: 160px;
+  z-index: 100;
+}
+
+.dropdown-title {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #aaa;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  background: #333;
+  border: none;
+  color: white;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background: #444;
+}
+
+.dropdown-item.logout {
+  background: #a33;
+}
+
+.dropdown-item.logout:hover {
+  background: #c44;
+}
+
+.dropdown-user {
+  font-weight: bold;
+  margin: 4px 0 8px;
+}
+
+.manual-wallet-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.manual-wallet-input input {
+  padding: 8px 10px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #222;
+  color: white;
+  font-size: 14px;
+  width: 260px;
+}
+
+.manual-wallet-input input::placeholder {
+  color: #888;
+}
+
+.manual-wallet-input button {
+  background: #333;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.manual-wallet-input button:hover {
+  background: #444;
+}
+
+/* src/components/Header.css */
+/* ... your existing CSS ... */
+
+/* Add this for wallet address display */
+.wallet-address {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #fff;
+  min-width: 150px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
