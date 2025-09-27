@@ -48,14 +48,21 @@ body {
   align-items: center;
 }
 
-.section2 {
+/* .section2 {
   flex: 2;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
   padding-left: 40px;
+} */
+.section3 {
+  flex: 1;
+  padding: 20px;
+  overflow: visible;   
+  height: auto;        
 }
+
 
 .section3 {
   flex: 3;
@@ -241,3 +248,65 @@ body {
   color: #ff5555;
   font-weight: 700;
 }
+
+/* Weapon grid */
+.weapon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+  padding: 10px;
+
+  overflow: visible;   /* ✅ no scrolling */
+  max-height: none;    /* ✅ expand naturally */
+}
+.weapon-card {
+  background: rgba(30,30,30,0.7);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.weapon-name {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.weapon-power {
+  font-size: 12px;
+  color: #ccc;
+}
+
+.weapon-id {
+  font-size: 10px;
+  color: #888;
+  margin: 4px 0;
+}
+
+.weapon-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.weapon-card button {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  background: #4caf50;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.weapon-card button:hover {
+  background: #45a049;
+}
+

@@ -20,8 +20,10 @@ interface WeaponRequest {
   id: string;
   lender: string;
   renter: string;
-  weapon: string;
+  weaponId: string;
+  weaponName: string;
   duration: number;
+  timestamp: number;
   status: 'pending' | 'accepted' | 'rejected';
 }
 
@@ -34,13 +36,12 @@ const Dashboard: React.FC = () => {
   const [manualAddress, setManualAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
 
-  // Request weapon modal state
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestForm, setRequestForm] = useState({
-    lenderAddress: '',
-    weaponId: '',
-    duration: 24 // hours
-  });
+  // Browse weapons state
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [browseAddress, setBrowseAddress] = useState("");
+  const [browseWeapons, setBrowseWeapons] = useState<WeaponInfo[]>([]);
+  const [loadingBrowse, setLoadingBrowse] = useState(false);
+  const [requestDuration, setRequestDuration] = useState(24);
 
   // Requests modal state
   const [showRequestsModal, setShowRequestsModal] = useState(false);
@@ -70,7 +71,7 @@ const Dashboard: React.FC = () => {
         if (mounted) setBorrowedWeapons(loans);
 
         // Load weapon requests (where current user is lender)
-        const requests = await getWeaponRequests(currentAddress);
+        const requests = await getWeaponRequestsForUser(currentAddress);
         if (mounted) setWeaponRequests(requests);
 
         // Check balance
@@ -94,10 +95,32 @@ const Dashboard: React.FC = () => {
     return () => { mounted = false; };
   }, [currentAddress]);
 
-  // Mock function to get borrowed weapons - you'd implement this with actual Sui queries
+  // Mock storage for requests (in real app, this would be on-chain events)
+  const getStoredRequests = (): WeaponRequest[] => {
+    try {
+      const stored = localStorage.getItem('weaponRequests');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveRequest = (request: WeaponRequest) => {
+    const requests = getStoredRequests();
+    requests.push(request);
+    localStorage.setItem('weaponRequests', JSON.stringify(requests));
+  };
+
+  const updateRequestStatus = (requestId: string, status: 'accepted' | 'rejected') => {
+    const requests = getStoredRequests();
+    const updated = requests.map(req => 
+      req.id === requestId ? { ...req, status } : req
+    );
+    localStorage.setItem('weaponRequests', JSON.stringify(updated));
+    setWeaponRequests(updated.filter(req => req.lender === currentAddress && req.status === 'pending'));
+  };
+
   const getBorrowedWeapons = async (address: string): Promise<LoanInfo[]> => {
-    // This would query for Loan objects where renter == address
-    // For now, returning empty array since we need to implement the actual query
     try {
       const result = await client.getOwnedObjects({
         owner: address,
@@ -135,11 +158,137 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Mock function to get weapon requests - you'd implement this with event queries
-  const getWeaponRequests = async (address: string): Promise<WeaponRequest[]> => {
-    // This would query for RequestWeaponEvent events where lender == address
-    // For now, returning mock data
-    return [];
+  const getWeaponRequestsForUser = async (address: string): Promise<WeaponRequest[]> => {
+    // Get requests where current user is the lender (owns the weapon)
+    const allRequests = getStoredRequests();
+    return allRequests.filter(req => req.lender === address && req.status === 'pending');
+  };
+
+  const handleBrowseWeapons = async () => {
+    if (!browseAddress.trim()) {
+      alert("Please enter a wallet address");
+      return;
+    }
+
+    if (!browseAddress.startsWith("0x") || browseAddress.length < 42) {
+      alert("Please enter a valid Sui wallet address");
+      return;
+    }
+
+    setLoadingBrowse(true);
+    try {
+      const weapons = await getWeaponsForUser(browseAddress.trim());
+      setBrowseWeapons(weapons);
+      if (weapons.length === 0) {
+        alert("No weapons found at this address");
+      }
+    } catch (error) {
+      console.error("Error browsing weapons:", error);
+      alert("Failed to load weapons for this address");
+    } finally {
+      setLoadingBrowse(false);
+    }
+  };
+
+  const handleRequestWeapon = async (weapon: WeaponInfo, ownerAddress: string) => {
+    if (!currentAddress || currentAddress !== activeAddress) {
+      alert("You need the environment wallet to request weapons.");
+      return;
+    }
+
+    if (ownerAddress === currentAddress) {
+      alert("You cannot request your own weapons!");
+      return;
+    }
+
+    try {
+      // Create request record
+      const request: WeaponRequest = {
+        id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        lender: ownerAddress,
+        renter: currentAddress,
+        weaponId: weapon.objectId,
+        weaponName: weapon.name,
+        duration: requestDuration,
+        timestamp: Date.now(),
+        status: 'pending'
+      };
+
+      // Save request locally (in real app, this would emit an event on-chain)
+      saveRequest(request);
+
+      // Also call the smart contract function
+      const tx = new Transaction();
+      const durationMs = requestDuration * 60 * 60 * 1000; // Convert hours to milliseconds
+      
+      tx.moveCall({
+        target: `${packageId}::obs::request_weapon`,
+        arguments: [
+          tx.pure.address(ownerAddress),
+          tx.pure.address(weapon.objectId),
+          tx.pure.u64(durationMs)
+        ],
+      });
+
+      const result = await localSignAndExecute(tx);
+      console.log("Request successful:", result);
+      alert(`Weapon request sent to ${ownerAddress.slice(0, 10)}... for ${weapon.name}!`);
+      
+    } catch (error: any) {
+      console.error("Request failed:", error);
+      alert(`Failed to request weapon: ${error?.message || "Unknown error"}`);
+    }
+  };
+
+  const handleAcceptRequest = async (request: WeaponRequest) => {
+    if (!currentAddress || currentAddress !== activeAddress) {
+      alert("You need the environment wallet to accept requests.");
+      return;
+    }
+
+    try {
+      const tx = new Transaction();
+      const durationMs = request.duration * 60 * 60 * 1000; // Convert hours to milliseconds
+      
+      // Get clock object
+      const clockObjectId = "0x6"; // Sui system clock object
+      
+      tx.moveCall({
+        target: `${packageId}::obs::lend_weapon`,
+        arguments: [
+          tx.object(request.weaponId),
+          tx.pure.address(request.renter),
+          tx.pure.u64(durationMs),
+          tx.object(clockObjectId)
+        ],
+      });
+
+      const result = await localSignAndExecute(tx);
+      console.log("Lend successful:", result);
+      alert(`Weapon lent successfully to ${request.renter.slice(0, 10)}...!`);
+      
+      // Update request status
+      updateRequestStatus(request.id, 'accepted');
+      
+      // Refresh data
+      setTimeout(async () => {
+        if (currentAddress) {
+          const w = await getWeaponsForUser(currentAddress);
+          setWeapons(w);
+          const loans = await getBorrowedWeapons(currentAddress);
+          setBorrowedWeapons(loans);
+        }
+      }, 3000);
+      
+    } catch (error: any) {
+      console.error("Lend failed:", error);
+      alert(`Failed to lend weapon: ${error?.message || "Unknown error"}`);
+    }
+  };
+
+  const handleRejectRequest = (request: WeaponRequest) => {
+    updateRequestStatus(request.id, 'rejected');
+    alert("Request rejected");
   };
 
   const handleMintWeapon = async (weaponType: number) => {
@@ -195,86 +344,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleRequestWeapon = async () => {
-    if (!currentAddress || currentAddress !== activeAddress) {
-      alert("You need the environment wallet to request weapons.");
-      return;
-    }
-
-    if (!requestForm.lenderAddress || !requestForm.weaponId) {
-      alert("Please fill in all fields.");
-      return;
-    }
-
-    try {
-      const tx = new Transaction();
-      const durationMs = requestForm.duration * 60 * 60 * 1000; // Convert hours to milliseconds
-      
-      tx.moveCall({
-        target: `${packageId}::obs::request_weapon`,
-        arguments: [
-          tx.pure.address(requestForm.lenderAddress),
-          tx.pure.address(requestForm.weaponId),
-          tx.pure.u64(durationMs)
-        ],
-      });
-
-      const result = await localSignAndExecute(tx);
-      console.log("Request successful:", result);
-      alert("Weapon request sent successfully!");
-      
-      setShowRequestModal(false);
-      setRequestForm({ lenderAddress: '', weaponId: '', duration: 24 });
-      
-    } catch (error: any) {
-      console.error("Request failed:", error);
-      alert(`Failed to request weapon: ${error?.message || "Unknown error"}`);
-    }
-  };
-
-  const handleAcceptRequest = async (request: WeaponRequest, weaponObjectId: string) => {
-    if (!currentAddress || currentAddress !== activeAddress) {
-      alert("You need the environment wallet to accept requests.");
-      return;
-    }
-
-    try {
-      const tx = new Transaction();
-      const durationMs = request.duration;
-      
-      // Get clock object (you might need to create this or pass it)
-      const clockObjectId = "0x6"; // Sui system clock object
-      
-      tx.moveCall({
-        target: `${packageId}::obs::lend_weapon`,
-        arguments: [
-          tx.object(weaponObjectId),
-          tx.pure.address(request.renter),
-          tx.pure.u64(durationMs),
-          tx.object(clockObjectId)
-        ],
-      });
-
-      const result = await localSignAndExecute(tx);
-      console.log("Lend successful:", result);
-      alert("Weapon lent successfully!");
-      
-      // Refresh data
-      setTimeout(async () => {
-        if (currentAddress) {
-          const w = await getWeaponsForUser(currentAddress);
-          setWeapons(w);
-          const loans = await getBorrowedWeapons(currentAddress);
-          setBorrowedWeapons(loans);
-        }
-      }, 3000);
-      
-    } catch (error: any) {
-      console.error("Lend failed:", error);
-      alert(`Failed to lend weapon: ${error?.message || "Unknown error"}`);
-    }
-  };
-
   const getMintButtonProps = (type: number) => {
     const canMint = currentAddress === activeAddress && parseFloat(balance) > 0;
     const disabled = minting || !canMint || !packageId || packageId === "0x0";
@@ -304,7 +373,7 @@ const Dashboard: React.FC = () => {
   return (
     <>
       <Header
-        onRequestWeapon={() => setShowRequestModal(true)}
+        onRequestWeapon={() => setShowBrowseModal(true)}
         onSeeRequests={() => setShowRequestsModal(true)}
         manualAddress={manualAddress}
         setManualAddress={setManualAddress}
@@ -481,100 +550,146 @@ const Dashboard: React.FC = () => {
         </section>
       </main>
 
-      {/* Request Weapon Modal */}
-      {showRequestModal && (
+      {/* Browse Weapons Modal */}
+      {showBrowseModal && (
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: 'rgba(0,0,0,0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            width: '400px',
-            maxWidth: '90vw'
+            backgroundColor: '#1a1a1a',
+            border: '2px solid #40e0ff',
+            padding: '30px',
+            borderRadius: '15px',
+            width: '600px',
+            maxWidth: '90vw',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            color: 'white'
           }}>
-            <h3>Request Weapon</h3>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Lender Address:</label>
-              <input
-                type="text"
-                value={requestForm.lenderAddress}
-                onChange={(e) => setRequestForm({...requestForm, lenderAddress: e.target.value})}
-                placeholder="0x..."
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              />
+            <h3 style={{ color: '#40e0ff', textAlign: 'center', marginBottom: '20px' }}>Browse & Request Weapons</h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#e0e0e0' }}>User Wallet Address:</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  value={browseAddress}
+                  onChange={(e) => setBrowseAddress(e.target.value)}
+                  placeholder="0x..."
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    border: '1px solid #40e0ff',
+                    borderRadius: '5px',
+                    color: 'white'
+                  }}
+                />
+                <button
+                  onClick={handleBrowseWeapons}
+                  disabled={loadingBrowse}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#40e0ff',
+                    color: 'black',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: loadingBrowse ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {loadingBrowse ? 'Loading...' : 'Browse'}
+                </button>
+              </div>
             </div>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Weapon ID:</label>
-              <input
-                type="text"
-                value={requestForm.weaponId}
-                onChange={(e) => setRequestForm({...requestForm, weaponId: e.target.value})}
-                placeholder="0x..."
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Duration (hours):</label>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#e0e0e0' }}>Request Duration (hours):</label>
               <input
                 type="number"
-                value={requestForm.duration}
-                onChange={(e) => setRequestForm({...requestForm, duration: parseInt(e.target.value) || 24})}
+                value={requestDuration}
+                onChange={(e) => setRequestDuration(parseInt(e.target.value) || 24)}
                 min="1"
                 max="168"
                 style={{
                   width: '100%',
                   padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  border: '1px solid #40e0ff',
+                  borderRadius: '5px',
+                  color: 'white'
                 }}
               />
             </div>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+
+            {browseWeapons.length > 0 && (
+              <div>
+                <h4 style={{ color: '#40e0ff', marginBottom: '15px' }}>Available Weapons:</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                  {browseWeapons.map((weapon) => (
+                    <div
+                      key={weapon.objectId}
+                      style={{
+                        border: '1px solid #40e0ff',
+                        borderRadius: '10px',
+                        padding: '15px',
+                        textAlign: 'center',
+                        backgroundColor: 'rgba(64, 224, 255, 0.1)',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <h5 style={{ color: '#40e0ff', marginBottom: '8px', fontSize: '16px' }}>{weapon.name}</h5>
+                      <p style={{ color: '#e0e0e0', fontSize: '14px', marginBottom: '10px' }}>Power: {weapon.power}</p>
+                      <p style={{ color: '#888', fontSize: '10px', marginBottom: '10px', wordBreak: 'break-all' }}>
+                        ID: {weapon.objectId.slice(0, 8)}...
+                      </p>
+                      <button
+                        onClick={() => handleRequestWeapon(weapon, browseAddress)}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#ff4081',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Request
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ textAlign: 'center' }}>
               <button
-                onClick={() => setShowRequestModal(false)}
+                onClick={() => {
+                  setShowBrowseModal(false);
+                  setBrowseAddress('');
+                  setBrowseWeapons([]);
+                }}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#6c757d',
+                  padding: '10px 20px',
+                  backgroundColor: '#666',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '5px',
                   cursor: 'pointer'
                 }}
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleRequestWeapon}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Send Request
+                Close
               </button>
             </div>
           </div>
@@ -589,57 +704,74 @@ const Dashboard: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: 'rgba(0,0,0,0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
+            backgroundColor: '#1a1a1a',
+            border: '2px solid #40e0ff',
+            padding: '30px',
+            borderRadius: '15px',
             width: '500px',
             maxWidth: '90vw',
             maxHeight: '80vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            color: 'white'
           }}>
-            <h3>Weapon Requests</h3>
+            <h3 style={{ color: '#40e0ff', textAlign: 'center', marginBottom: '20px' }}>Weapon Requests ({weaponRequests.length})</h3>
+            
             {weaponRequests.length === 0 ? (
-              <p className="muted">No weapon requests yet.</p>
+              <p style={{ textAlign: 'center', color: '#888' }}>No pending weapon requests.</p>
             ) : (
-              <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 {weaponRequests.map((request) => (
-                  <div key={request.id} style={{
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    padding: '16px'
-                  }}>
-                    <p><strong>From:</strong> {request.renter.slice(0, 10)}...{request.renter.slice(-8)}</p>
-                    <p><strong>Duration:</strong> {request.duration} hours</p>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <div
+                    key={request.id}
+                    style={{
+                      border: '1px solid #40e0ff',
+                      borderRadius: '10px',
+                      padding: '20px',
+                      marginBottom: '15px',
+                      backgroundColor: 'rgba(64, 224, 255, 0.1)'
+                    }}
+                  >
+                    <h4 style={{ color: '#40e0ff', marginBottom: '10px' }}>{request.weaponName}</h4>
+                    <p style={{ color: '#e0e0e0', fontSize: '14px', marginBottom: '5px' }}>
+                      <strong>From:</strong> {request.renter.slice(0, 10)}...{request.renter.slice(-8)}
+                    </p>
+                    <p style={{ color: '#e0e0e0', fontSize: '14px', marginBottom: '15px' }}>
+                      <strong>Duration:</strong> {request.duration} hours
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px' }}>
                       <button
-                        onClick={() => handleAcceptRequest(request, request.weapon)}
+                        onClick={() => handleAcceptRequest(request)}
                         style={{
-                          padding: '6px 12px',
+                          flex: 1,
+                          padding: '8px 16px',
                           backgroundColor: '#4caf50',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
                         }}
                       >
                         Accept
                       </button>
                       <button
-                        onClick={() => alert("Request rejected")}
+                        onClick={() => handleRejectRequest(request)}
                         style={{
-                          padding: '6px 12px',
+                          flex: 1,
+                          padding: '8px 16px',
                           backgroundColor: '#f44336',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
                         }}
                       >
                         Reject
@@ -649,19 +781,22 @@ const Dashboard: React.FC = () => {
                 ))}
               </div>
             )}
-            <button
-              onClick={() => setShowRequestsModal(false)}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Close
-            </button>
+
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setShowRequestsModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#666',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

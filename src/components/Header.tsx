@@ -10,6 +10,7 @@ interface HeaderProps {
   currentAddress: string | null;
   activeAddress: string | null;
   balance: string;
+  requestsCount?: number;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -20,6 +21,7 @@ const Header: React.FC<HeaderProps> = ({
   currentAddress,
   activeAddress,
   balance,
+  requestsCount = 0,
 }) => {
   const [showProfile, setShowProfile] = useState(false);
   const [tempAddress, setTempAddress] = useState("");
@@ -79,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({
           Request Weapon
         </button>
 
-        {/* See Requests Button */}
+        {/* See Requests Button with Notification Badge */}
         <button 
           className="nav-btn" 
           onClick={onSeeRequests}
@@ -89,11 +91,32 @@ const Header: React.FC<HeaderProps> = ({
             padding: "8px 16px",
             border: "none",
             borderRadius: "4px",
-            color: "white"
+            color: "white",
+            position: "relative"
           }}
           disabled={!currentAddress}
         >
           See Requests
+          {requestsCount > 0 && (
+            <span style={{
+              position: "absolute",
+              top: "-8px",
+              right: "-8px",
+              backgroundColor: "#ff4444",
+              color: "white",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "11px",
+              fontWeight: "bold",
+              border: "2px solid white"
+            }}>
+              {requestsCount > 9 ? '9+' : requestsCount}
+            </span>
+          )}
         </button>
 
         {/* Wallet Info Display */}
@@ -156,6 +179,14 @@ const Header: React.FC<HeaderProps> = ({
                   {currentAddress.slice(0, 20)}...{currentAddress.slice(-10)}
                   <br />
                   Balance: {balance} SUI
+                  {requestsCount > 0 && (
+                    <>
+                      <br />
+                      <span style={{ color: "#ff4444", fontWeight: "bold" }}>
+                        {requestsCount} pending request{requestsCount !== 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
               
@@ -211,7 +242,7 @@ const Header: React.FC<HeaderProps> = ({
                     fontSize: "12px"
                   }}
                 >
-                  Set Manual Address
+                  Set Manual Address (View Only)
                 </button>
               </div>
               

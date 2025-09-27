@@ -14,18 +14,14 @@ const WeaponList: React.FC<Props> = ({ weapons, onUse, onRequest }) => {
   }
 
   return (
-    <div className="weapon-list">
+    <div className="weapon-grid">
       {weapons.map((w) => (
         <div key={w.id} className="weapon-card">
-          <div className="weapon-row">
-            <div>
-              <div className="weapon-name">{w.name}</div>
-              <div className="weapon-id muted">{w.id}</div>
-            </div>
-            <div className="weapon-power">Power: {w.power}</div>
-          </div>
+          <div className="weapon-name">{w.name}</div>
+          <div className="weapon-power">Power: {w.power}</div>
+          <div className="weapon-id muted">{w.id.slice(0, 6)}...{w.id.slice(-4)}</div>
 
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+          <div className="weapon-actions">
             {onUse && (
               <button className="nav-btn" onClick={() => onUse(w)}>
                 Use
@@ -33,7 +29,7 @@ const WeaponList: React.FC<Props> = ({ weapons, onUse, onRequest }) => {
             )}
             {onRequest && (
               <button className="nav-btn" onClick={() => onRequest(w)}>
-                Request Share
+                Request
               </button>
             )}
           </div>
